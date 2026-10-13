@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useHousehold } from './householdSync';
 import { Settings, Brush, ShoppingBag, LayoutGrid, Sparkles, Plus, Check, Circle, Search, Heart, X, Edit3, Leaf, Coffee, Wheat, Drumstick, Package, Cookie, Snowflake, Home, ShoppingCart, Trash2, AlertCircle, Mic, Share2, ListPlus, Loader2, CheckCircle2, Copy, User, Lock, Mail, ArrowRight, LogOut, KeyRound, ArrowLeft } from 'lucide-react';
 
 const App = () => {
@@ -6,6 +7,9 @@ const App = () => {
   const [activeCategory, setActiveCategory] = useState('All');
   const [catalogItems, setCatalogItems] = useState([]);
   const [items, setItems] = useState([]);
+  const household = useHousehold(setItems, catalogItems);
+  const [joinCode, setJoinCode] = useState('');
+  const [recoverCode, setRecoverCode] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [addingItems, setAddingItems] = useState({});
   const [toastMessage, setToastMessage] = useState('');
@@ -199,7 +203,8 @@ const App = () => {
       image: item.image,
       completed: false 
     }));
-    setItems([...items, ...newItems]);
+    if (household.enabled) household.add(stagedItems);
+    else setItems([...items, ...newItems]);
     closeModal();
   };
 
@@ -215,13 +220,15 @@ const App = () => {
       return;
     }
     const newItem = { id: Date.now(), name: item.name, image: item.image, completed: false };
-    setItems(prevItems => [...prevItems, newItem]);
+    if (household.enabled) household.add([item]);
+    else setItems(prevItems => [...prevItems, newItem]);
     
     setAddingItems(prev => ({ ...prev, [item.id]: true }));
     setTimeout(() => setAddingItems(prev => ({ ...prev, [item.id]: false })), 1000);
   };
 
   const toggleItem = (id) => {
+    if (household.enabled) { const item = items.find(i => i.id === id); if (item) household.toggle(item, autoClear); return; }
     setItems(items.map(item => {
       if (item.id === id) {
         const nextCompleted = !item.completed;
@@ -232,9 +239,9 @@ const App = () => {
     }).filter(Boolean));
   };
 
-  const removeItem = (id, e) => { e.stopPropagation(); setItems(items.filter(item => item.id !== id)); };
-  const clearCompletedItems = () => setItems(items.filter(item => !item.completed));
-  const clearEntireList = () => setItems([]);
+  const removeItem = (id, e) => { e.stopPropagation(); if (household.enabled) household.remove(id); else setItems(items.filter(item => item.id !== id)); };
+  const clearCompletedItems = () => household.enabled ? household.clearCompleted() : setItems(items.filter(item => !item.completed));
+  const clearEntireList = () => household.enabled ? household.clearAll() : setItems([]);
 
   const copyListToClipboard = () => {
     const textList = items.map(i => `${i.completed ? '[x]' : '[ ]'} ${i.name}`).join('\n');
@@ -297,7 +304,8 @@ const App = () => {
       completed: false
     }));
 
-    setItems(prev => [...prev, ...newItems]);
+    if (household.enabled) household.add(ingredientsToAdd);
+    else setItems(prev => [...prev, ...newItems]);
     triggerToast(`Added ${newItems.length} items to your list!`, 'success');
     setGeneratedRecipe(null);
     setRecipeInput('');
@@ -579,11 +587,28 @@ const App = () => {
           {activeTab === 'Settings' && (
             <div className="max-w-3xl mx-auto space-y-8">
               <h2 className="text-3xl font-bold text-brand-green">FreshCart Settings</h2>
+              <section className="bg-white rounded-3xl border p-6 space-y-4" aria-label="Shared household">
+                <h3 className="text-xl font-bold text-brand-green">Shared Household</h3>
+                <p role="status">{household.message}</p>
+                {!household.enabled && <p>Supabase configuration is required for sharing.</p>}
+                <div className="flex flex-wrap gap-2">
+                  <button disabled={!household.connected || household.busy} onClick={household.create} className="bg-brand-green text-white rounded-xl p-3 disabled:opacity-50">Create household</button>
+                  <button disabled={!household.connected || household.busy} onClick={household.inviteMember} className="bg-brand-green text-white rounded-xl p-3 disabled:opacity-50">Create invitation</button>
+                  <button disabled={!household.connected || household.busy} onClick={household.createRecovery} className="bg-brand-green text-white rounded-xl p-3 disabled:opacity-50">Create recovery code</button>
+                </div>
+                {household.invite && <p>Invitation (one use, 10 minutes): <strong>{household.invite}</strong> <button onClick={() => navigator.clipboard.writeText(household.invite)} className="underline">Copy</button></p>}
+                {household.recovery && <p>Keep this recovery code private: <strong>{household.recovery}</strong> <button onClick={() => navigator.clipboard.writeText(household.recovery)} className="underline">Copy</button></p>}
+                <label htmlFor="join-household" className="block font-semibold">Join household</label>
+                <div className="flex gap-2"><input id="join-household" value={joinCode} onChange={e => setJoinCode(e.target.value)} className="border rounded-xl p-3 flex-1 min-w-0" placeholder="Invitation code"/><button disabled={!household.connected || household.busy || !joinCode.trim()} onClick={() => household.join(joinCode)} className="bg-brand-green text-white rounded-xl p-3 disabled:opacity-50">Join</button></div>
+                <label htmlFor="recover-household" className="block font-semibold">Recover household on another device</label>
+                <div className="flex gap-2"><input id="recover-household" value={recoverCode} onChange={e => setRecoverCode(e.target.value)} className="border rounded-xl p-3 flex-1 min-w-0" placeholder="Recovery code"/><button disabled={!household.connected || household.busy || !recoverCode.trim()} onClick={() => household.recover(recoverCode)} className="bg-brand-green text-white rounded-xl p-3 disabled:opacity-50">Recover</button></div>
+              </section>
+
               <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-6 flex items-center space-x-5">
                 <div className="w-16 h-16 rounded-full bg-brand-lightGreen text-brand-green flex items-center justify-center shrink-0"><Home size={32} /></div>
                 <div>
                   <h3 className="text-xl font-bold text-slate-800">FreshCart</h3>
-                  <div className="flex items-center space-x-2 mt-1"><span className="w-2.5 h-2.5 rounded-full bg-green-500 inline-block"></span><span className="text-slate-500 text-sm font-medium">Active Local Storage ({items.length} items)</span></div>
+                  <div className="flex items-center space-x-2 mt-1"><span className="w-2.5 h-2.5 rounded-full bg-green-500 inline-block"></span><span className="text-slate-500 text-sm font-medium">{household.enabled ? 'Shared household list' : 'Local demo list'} ({items.length} items)</span></div>
                 </div>
               </div>
               <div className="space-y-3">
