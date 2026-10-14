@@ -461,7 +461,7 @@ const App = () => {
                   return (
                     <div key={item.id} className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-md transition-shadow relative group">
                       <div className="relative h-48 bg-slate-100">
-                        <img src={item.image} alt={item.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" onError={(e)=>{e.target.src='https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=300&q=80'}} />
+                        <img src={item.image} alt={item.name} loading="lazy" referrerPolicy="no-referrer" title={item.imageSource ? `Photo source: ${item.imageSource}` : 'FreshCart placeholder image'} className="w-full h-full object-contain p-3 group-hover:scale-105 transition-transform duration-500" onError={(e)=>{if(!e.currentTarget.src.endsWith('/logo-icon.png')) e.currentTarget.src='/logo-icon.png'}} />
                         <button onClick={() => toggleFavorite(item.id)} className={`absolute top-3 right-3 p-2 rounded-full shadow-sm transition-colors ${isFavorited ? 'bg-white text-red-500' : 'bg-white/90 text-slate-400 hover:text-red-500'}`}>
                           <Heart size={20} className={isFavorited ? "fill-current" : ""} />
                         </button>
