@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
 
 const url = import.meta.env.VITE_SUPABASE_URL;
@@ -14,6 +14,8 @@ export function useHousehold(setItems, catalog) {
   const [invite, setInvite] = useState('');
   const [recovery, setRecovery] = useState('');
   const [version, refresh] = useState(0);
+  const catalogRef = React.useRef(catalog);
+  useEffect(() => { catalogRef.current = catalog; }, [catalog]);
 
   useEffect(() => {
     if (!db) return;
@@ -55,7 +57,7 @@ export function useHousehold(setItems, catalog) {
       if (error) { setMessage(error.message); return; }
       setItems((data || []).map(i => ({
         id: i.id, name: i.name, completed: i.is_checked, category: i.category,
-        image: catalog.find(c => c.name.toLowerCase() === i.name.toLowerCase())?.image
+        image: catalogRef.current.find(c => c.name.toLowerCase() === i.name.toLowerCase())?.image
       })));
     };
     load();
@@ -64,7 +66,7 @@ export function useHousehold(setItems, catalog) {
       load).subscribe();
     const timer = setInterval(load, 5000);
     return () => { active = false; clearInterval(timer); db.removeChannel(channel); };
-  }, [space, version, setItems, catalog]);
+  }, [space, version, setItems]);
 
   async function write(operation) {
     if (!db || !space) { setMessage('Household not connected'); return false; }
