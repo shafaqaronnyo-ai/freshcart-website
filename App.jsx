@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useHousehold } from './householdSync';
+import groceryCatalog from './groceryCatalog.json';
 import { Settings, Brush, ShoppingBag, LayoutGrid, Sparkles, Plus, Check, Circle, Search, Heart, X, Edit3, Leaf, Coffee, Wheat, Drumstick, Package, Cookie, Snowflake, Home, ShoppingCart, Trash2, AlertCircle, Mic, Share2, ListPlus, Loader2, CheckCircle2, Copy, User, Lock, Mail, ArrowRight, LogOut, KeyRound, ArrowLeft } from 'lucide-react';
 
 const App = () => {
@@ -68,16 +69,9 @@ const App = () => {
     { name: 'Household', icon: Home },
   ];
 
-  // Fetch catalog from backend SQL database on mount
+  // Shared with the Android app: original SQLite grocery catalogue, bundled locally.
   useEffect(() => {
-    fetch('http://localhost:5000/api/catalog')
-      .then(res => res.json())
-      .then(data => {
-        if (Array.isArray(data) && data.length > 0) {
-          setCatalogItems(data);
-        }
-      })
-      .catch(err => console.log('Could not load catalog from server:', err));
+    setCatalogItems(groceryCatalog);
   }, []);
 
   const filteredCatalog = catalogItems.filter(item => {
